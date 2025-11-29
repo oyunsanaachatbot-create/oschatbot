@@ -1,65 +1,42 @@
+// services/modelService.ts
 export async function getAvailableModels(apiKeys: string[], apiBaseUrl?: string): Promise<string[]> {
-  const defaultModelList = ['gemini-2.5-flash'];
+  // OpenAI default model list
+  const defaultModelList = ['gpt-4.1-mini'];
 
   if (!apiKeys || apiKeys.length === 0) {
     return defaultModelList;
   }
+
+  const models = new Set(defaultModelList);
 
   for (const key of apiKeys) {
     const sanitizedApiKey = key.trim().replace(/["']/g, '');
     if (!sanitizedApiKey) continue;
 
     try {
-      const trimmedApiBaseUrl = apiBaseUrl?.trim();
-      const baseUrl = (trimmedApiBaseUrl || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
-      const url = `${baseUrl}/v1beta/models`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
+      const response = await fetch("https://api.openai.com/v1/models", {
+        method: "GET",
         headers: {
-          'x-goog-api-key': sanitizedApiKey,
-        },
+          "Authorization": `Bearer ${sanitizedApiKey}`
+        }
       });
-      
-      if (!response.ok) {
-        // Don't throw an error, just log and try the next key
-        let errorDetails = `API call failed with status: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          if (errorData?.error?.message) {
-            errorDetails += `: ${errorData.error.message}`;
-          }
-        } catch (e) { /* Response was not JSON */ }
-        console.warn(`Failed to fetch models with key ending in ...${sanitizedApiKey.slice(-4)}: ${errorDetails}`);
-        continue;
-      }
+
+      if (!response.ok) continue;
 
       const data = await response.json();
-      
-      if (!data.models || !Array.isArray(data.models)) {
-          console.warn("Invalid response structure from models API with one key, trying next.");
-          continue;
-      }
 
-      const chatModels = data.models
-        .filter((m: any) => 
-          m.name?.startsWith('models/gemini') && 
-          m.supportedGenerationMethods?.includes('generateContent')
+      const chatModels = data.data
+        .filter((m: any) =>
+          m.id.includes("gpt") || m.id.includes("o3")
         )
-        .map((m: any) => m.name.replace('models/', ''))
-        .sort((a: string, b: string) => b.localeCompare(a));
-      
-      const finalModels = [...new Set([ ...defaultModelList, ...chatModels ])];
-      
-      if (finalModels.length > 0) {
-        return finalModels; // Return on first success
-      }
-    } catch (error) {
-      console.warn(`Error fetching models with key ending in ...${sanitizedApiKey.slice(-4)}:`, error);
-      // Continue to the next key
+        .map((m: any) => m.id);
+
+      chatModels.forEach((id: string) => models.add(id));
+
+    } catch {
+      continue;
     }
   }
 
-  console.error("All API keys failed to fetch the model list. Using default list.");
-  return defaultModelList;
+  return [...models];
 }
