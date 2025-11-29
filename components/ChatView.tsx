@@ -64,12 +64,6 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
   } = props;
 
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState('');
-  const [toolConfig, setToolConfig] = useState(() => ({
-    codeExecution: false,
-    googleSearch: settings.defaultSearch,
-    urlContext: false,
-  }));
 
   const chatInputRef = useRef<ChatInputRef | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -92,17 +86,18 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
     [settings.defaultSearch]
   );
 
+  const [toolConfig, setToolConfig] = useState(getDefaultToolConfig);
+
   // Chat солигдоход toolConfig, edit state-ийг reset хийнэ
   useEffect(() => {
     if (chatSession?.id !== prevChatIdRef.current) {
       setToolConfig(getDefaultToolConfig());
       setEditingMessageId(null);
-      setChatInput('');
     }
     prevChatIdRef.current = chatSession?.id;
   }, [chatSession, getDefaultToolConfig]);
 
-  // Доод мессеж рүү автоматаар scroll хийх (илгээгээд ч, хариу ирээд ч)
+  // Доош автоматаар scroll
   useEffect(() => {
     if (!chatSession) return;
     if (isLoading || editingMessageId) return;
@@ -126,7 +121,7 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
     }
   };
 
-  // ---- Drag & drop (image/file upload) ----
+  // ---- Drag & drop ----
   const handleDragEnter = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -244,12 +239,11 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
                 onShowCitations={props.onShowCitations}
               />
             ))}
-            {/* Доод талын anchor – үүн рүү scroll хийж байна */}
             <div ref={messagesEndRef} />
           </div>
         </InternalView>
 
-        {/* Анхны дэлгэц – chat байхгүй үед */}
+        {/* Анхны дэлгэц */}
         <InternalView active={!chatSession}>
           <WelcomeView
             currentModel={props.currentModel}
@@ -262,15 +256,14 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
       {/* Suggested replies */}
       {!isLoading &&
         props.suggestedReplies.length > 0 &&
-        !editingMessageId &&
-        !chatInput && (
+        !editingMessageId && (
           <SuggestedReplies
             suggestions={props.suggestedReplies}
             onSendSuggestion={handleSendSuggestion}
           />
         )}
 
-      {/* Input */}
+      {/* Input – state-ийг ChatInput өөрөө удирдана */}
       <ChatInput
         ref={chatInputRef}
         onSendMessage={handleSendMessageWithTools}
@@ -278,8 +271,6 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
         onCancel={onCancelGeneration}
         toolConfig={toolConfig}
         onToolConfigChange={setToolConfig}
-        input={chatInput}
-        setInput={setChatInput}
         chatSession={chatSession}
         onToggleStudyMode={handleToggleStudyMode}
         isNextChatStudyMode={props.isNextChatStudyMode}
