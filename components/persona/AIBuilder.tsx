@@ -44,8 +44,8 @@ export const AIBuilder: React.FC<AIBuilderProps> = ({ persona, onUpdate, setting
             if (apiKeys.length === 0) throw new Error("API Key not set.");
 
             
-            onUpdate(personaUpdate);
-            setMessages(prev => prev.map(m => m.id === statusMessageId ? { ...m, role: 'model', content: explanation } : m));
+           
+        
         } catch (error) {
             console.error(error);
             const errorMessage = (error as Error).message.includes("API Key not set") 
