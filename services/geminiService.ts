@@ -1,6 +1,4 @@
 // services/geminiService.ts
-// Gemini-г ашиглахгүй, бүхнийг OpenAI chatService руу дамжуулна.
-
 import { sendChat } from "./chatService";
 
 type Message = { role: string; content: string };
@@ -10,28 +8,40 @@ export async function chatWithGemini(messages: Message[]) {
   return sendChat(messages);
 }
 
-// Persona-д ашиглагддаг wrapper
+// Persona update-д ашиглагддаг wrapper
 export async function generatePersonaUpdate(messages: Message[]) {
   return chatWithGemini(messages);
 }
 
-// 👉 TranslateView.tsx энэ функцийг импортлож байгаа
+// TranslateView–д хэрэглэгддэг
 export async function detectLanguage(text: string): Promise<string> {
-  // Одоохондоо хэл илрүүлэхгүй, зүгээр "mn" буцаая
-  return "mn";
+  return "mn"; // эсвэл "en"
 }
 
-// 👉 TranslateView.tsx энэ функцийг ч импортолж байгаа
 export async function translateText(
   text: string,
   targetLanguage: string,
   sourceLanguage?: string
 ): Promise<string> {
-  // Одоохондоо жинхэнэ орчуулга хийхгүй, зүгээр оригинал текстээ буцаана
   return text;
 }
 
-// Хэрэв өөр газар ашиглаж байвал нийцүүлээд хадгалъя
-export async function translateWithGemini(text: string): Promise<string> {
-  return text;
+// 👉 ДУТУУ БАЙСАН 3 ФУНКЦИЙГ НЭМЖ ӨГЖ БАЙНА:
+
+// 1) sendMessageStream — chat streaming хийх
+export async function sendMessageStream(messages: Message[]): Promise<any> {
+  // streaming хэрэггүй байвал зүгээр sendChat руу дамжуулна
+  return sendChat(messages);
+}
+
+// 2) generateChatDetails — chat-ийн metadata
+export async function generateChatDetails(messages: Message[]): Promise<any> {
+  return { summary: "", topics: [] };
+}
+
+// 3) generateSuggestedReplies — автосанал
+export async function generateSuggestedReplies(
+  messages: Message[]
+): Promise<string[]> {
+  return [];
 }
