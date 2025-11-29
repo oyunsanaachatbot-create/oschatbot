@@ -1,17 +1,19 @@
-// services/chatService.ts
+// oschatbot/services/chatService.ts
+
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
-type Attachment = {
+type FileAttachment = {
+  id: string;
   name: string;
-  type: string;      // "image/png" гэх мэт
+  type: string;     // "image/png" гэх мэт
   size: number;
-  dataUrl: string;   // fileToData()-аас авдаг base64 data URL
+  dataUrl: string;  // fileToData() -с ирдэг base64 data URL
 };
 
 type ChatMessage = {
   role: 'user' | 'assistant' | 'system';
   content: string;
-  attachments?: Attachment[];
+  attachments?: FileAttachment[];
 };
 
 export async function sendChat(messages: ChatMessage[]) {
@@ -23,9 +25,8 @@ export async function sendChat(messages: ChatMessage[]) {
     };
   }
 
-  // OpenAI-д явуулах формат
   const payloadMessages = messages.map((msg) => {
-    // Зөвхөн user мессеж дээр зураг нэмж байна
+    // Зурагтай user мессеж
     if (msg.role === 'user' && msg.attachments && msg.attachments.length > 0) {
       const parts: any[] = [];
 
@@ -37,7 +38,6 @@ export async function sendChat(messages: ChatMessage[]) {
       }
 
       for (const att of msg.attachments) {
-        // dataUrl нь "data:image/...;base64,...." хэлбэртэй байх ёстой
         parts.push({
           type: 'image_url',
           image_url: { url: att.dataUrl },
@@ -64,7 +64,7 @@ export async function sendChat(messages: ChatMessage[]) {
       Authorization: `Bearer ${OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-4.1-mini',        // Чиний ашиглаж байгаа model
       temperature: 0.7,
       max_tokens: 500,
       messages: payloadMessages,
