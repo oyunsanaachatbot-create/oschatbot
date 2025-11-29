@@ -108,7 +108,13 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
         e.dataTransfer.clearData();
     }
   };
+const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+useEffect(() => {
+  if (messagesEndRef.current) {
+    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  }
+}, [chatSession?.id, chatSession?.messages.length]);
   return (
     <main
       className="glass-pane rounded-[var(--radius-2xl)] flex flex-col h-full overflow-hidden relative"
