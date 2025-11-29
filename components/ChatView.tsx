@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+// components/ChatView.tsx
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react';
 import { ChatSession, Message, Settings, Persona } from '../types';
 import { Icon } from './Icon';
 import { WelcomeView } from './WelcomeView';
@@ -12,75 +18,106 @@ import { ChatHeader } from './chat/ChatHeader';
 interface ChatViewProps {
   chatSession: ChatSession | null;
   personas: Persona[];
+
   onSendMessage: (message: string, files: File[], toolConfig: any) => void;
   isLoading: boolean;
+  settings: Settings;
   onCancelGeneration: () => void;
+
   onSetModelForActiveChat: (model: string) => void;
   currentModel: string;
   onSetCurrentModel: (model: string) => void;
   availableModels: string[];
+
   isSidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   onToggleMobileSidebar: () => void;
+
   onNewChat: () => void;
   onImageClick: (src: string) => void;
+
   suggestedReplies: string[];
-  settings: Settings;
-  onDeleteMessage: (messageId: string) => void;
-  onUpdateMessageContent: (messageId: string, newContent: string) => void;
+
+  onDeleteMessage: (id: string) => void;
+  onUpdateMessageContent: (id: string, newContent: string) => void;
   onRegenerate: () => void;
-  onEditAndResubmit: (messageId: string, newContent: string) => void;
+  onEditAndResubmit: (id: string, newContent: string) => void;
   onShowCitations: (chunks: any[]) => void;
-  onDeleteChat: (id: string) => void;
-  onEditChat: (chat: ChatSession) => void;
+
+  // Study mode
   onToggleStudyMode: (chatId: string, enabled: boolean) => void;
   isNextChatStudyMode: boolean;
   onToggleNextChatStudyMode: (enabled: boolean) => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = (props) => {
-  const { chatSession, personas, onSendMessage, isLoading, settings, onNewChat } = props;
   const { t } = useLocalization();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatInputRef = useRef<ChatInputRef>(null);
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const dragCounter = useRef(0);
-  
+
+  const {
+    chatSession,
+    personas,
+    onSendMessage,
+    isLoading,
+    settings,
+    onCancelGeneration,
+    onNewChat,
+  } = props;
+
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
+  const [toolConfig, setToolConfig] = useState(() => ({
+    codeExecution: false,
+    googleSearch: settings.defaultSearch,
+    urlContext: false,
+  }));
 
-  const activePersona = chatSession?.personaId ? personas.find(p => p.id === chatSession.personaId) : null;
+  const chatInputRef = useRef<ChatInputRef | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  const getDefaultToolConfig = useCallback(() => ({ codeExecution: false, googleSearch: false, urlContext: false }), []);
-  const [toolConfig, setToolConfig] = useState(getDefaultToolConfig());
-  
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounter = useRef(0);
   const prevChatIdRef = useRef<string | null | undefined>(undefined);
+
+  const activePersona: Persona | undefined =
+    chatSession?.personaId
+      ? personas.find((p) => p.id === chatSession.personaId)
+      : undefined;
+
+  const getDefaultToolConfig = useCallback(
+    () => ({
+      codeExecution: false,
+      googleSearch: settings.defaultSearch,
+      urlContext: false,
+    }),
+    [settings.defaultSearch]
+  );
+
+  // Chat солигдоход toolConfig, edit state-ийг reset хийнэ
   useEffect(() => {
     if (chatSession?.id !== prevChatIdRef.current) {
-        setToolConfig(getDefaultToolConfig());
-        setEditingMessageId(null);
-        setChatInput('');
+      setToolConfig(getDefaultToolConfig());
+      setEditingMessageId(null);
+      setChatInput('');
     }
     prevChatIdRef.current = chatSession?.id;
   }, [chatSession, getDefaultToolConfig]);
 
+  // Доод мессеж рүү автоматаар scroll хийх (илгээгээд ч, хариу ирээд ч)
   useEffect(() => {
-    if (isLoading || editingMessageId || !chatSession) return;
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatSession, chatSession?.messages, isLoading, editingMessageId]);
+    if (!chatSession) return;
+    if (isLoading || editingMessageId) return;
 
-  const handleSendMessageWithTools = (message: string, files: File[]) => { onSendMessage(message, files, toolConfig); setChatInput(''); };
-  const handleSendSuggestion = (suggestion: string) => onSendMessage(suggestion, [], { ...getDefaultToolConfig(), googleSearch: settings.defaultSearch });
-
-  const handleSaveEdit = (message: Message, newContent: string) => {
-    if (message.role === 'user') {
-      props.onEditAndResubmit(message.id, newContent);
-    } else {
-      props.onUpdateMessageContent(message.id, newContent);
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-    setEditingMessageId(null);
-  }
-  
+  }, [
+    chatSession?.id,
+    chatSession?.messages.length,
+    isLoading,
+    editingMessageId,
+  ]);
+
+  // ---- Study mode toggle ----
   const handleToggleStudyMode = (enabled: boolean) => {
     if (chatSession) {
       props.onToggleStudyMode(chatSession.id, enabled);
@@ -89,73 +126,164 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
     }
   };
 
+  // ---- Drag & drop (image/file upload) ----
   const handleDragEnter = (e: React.DragEvent<HTMLElement>) => {
-    e.preventDefault(); e.stopPropagation();
-    dragCounter.current++;
-    if (e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) setIsDraggingOver(true);
-  };
-  const handleDragLeave = (e: React.DragEvent<HTMLElement>) => {
-    e.preventDefault(); e.stopPropagation();
-    dragCounter.current--;
-    if (dragCounter.current === 0) setIsDraggingOver(false);
-  };
-  const handleDrop = (e: React.DragEvent<HTMLElement>) => {
-    e.preventDefault(); e.stopPropagation();
-    setIsDraggingOver(false);
-    dragCounter.current = 0;
-    if (e.dataTransfer.files?.length) {
-        chatInputRef.current?.addFiles(Array.from(e.dataTransfer.files));
-        e.dataTransfer.clearData();
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+
+    if (
+      e.dataTransfer.types &&
+      Array.from(e.dataTransfer.types).includes('Files')
+    ) {
+      setIsDraggingOver(true);
     }
   };
-const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-useEffect(() => {
-  if (messagesEndRef.current) {
-    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-  }
-}, [chatSession?.id, chatSession?.messages.length]);
+  const handleDragLeave = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+
+    if (dragCounter.current === 0) {
+      setIsDraggingOver(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    dragCounter.current = 0;
+
+    if (e.dataTransfer.files?.length) {
+      chatInputRef.current?.addFiles(Array.from(e.dataTransfer.files));
+      e.dataTransfer.clearData();
+    }
+  };
+
+  // ---- Send / suggestion ----
+  const handleSendMessageWithTools = (
+    message: string,
+    files: File[] = [],
+    config: any = toolConfig
+  ) => {
+    if (!message.trim() && files.length === 0) return;
+    onSendMessage(message, files, config);
+  };
+
+  const handleSendSuggestion = (suggestion: string) => {
+    if (isLoading) return;
+    handleSendMessageWithTools(suggestion, [], toolConfig);
+  };
+
+  const handleSaveEdit = (message: Message, newContent: string) => {
+    if (message.role === 'user') {
+      props.onEditAndResubmit(message.id, newContent);
+    } else {
+      props.onUpdateMessageContent(message.id, newContent);
+    }
+  };
+
   return (
     <main
       className="glass-pane rounded-[var(--radius-2xl)] flex flex-col h-full overflow-hidden relative"
-      onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onDrop={handleDrop}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onDrop={handleDrop}
     >
-        <div className={`dropzone-overlay ${isDraggingOver ? 'visible' : ''}`}>
-            <div className="dropzone-overlay-content">
-                <Icon icon="upload" className="w-20 h-20" />
-                <h3 className="text-2xl font-bold">Drop files here to upload</h3>
-            </div>
+      {/* Dropzone overlay */}
+      <div className={`dropzone-overlay ${isDraggingOver ? 'visible' : ''}`}>
+        <div className="dropzone-overlay-content">
+          <Icon icon="upload" className="w-20 h-20" />
+          <h3 className="text-2xl font-bold">Drop files here to upload</h3>
         </div>
-        
-        <ChatHeader 
-          chatSession={chatSession} 
-          onNewChat={onNewChat} 
-          availableModels={props.availableModels} 
-          onSetModelForActiveChat={props.onSetModelForActiveChat} 
-          currentModel={props.currentModel} 
-          isSidebarCollapsed={props.isSidebarCollapsed}
-          onToggleSidebar={props.onToggleSidebar}
-          onToggleMobileSidebar={props.onToggleMobileSidebar}
-        />
-        
-        <div className="flex-grow flex flex-col relative min-h-0">
-            <InternalView active={!!chatSession}>
-              <div className="flex-grow overflow-y-auto p-4">
-                  {(chatSession?.messages || []).map((msg, index) => (
-                    <MessageBubble key={msg.id} message={msg} index={index} onImageClick={props.onImageClick} settings={settings} persona={activePersona} isLastMessageLoading={isLoading && index === chatSession!.messages.length - 1} isEditing={editingMessageId === msg.id} onEditRequest={() => setEditingMessageId(msg.id)} onCancelEdit={() => setEditingMessageId(null)} onSaveEdit={handleSaveEdit} onDelete={props.onDeleteMessage} onRegenerate={props.onRegenerate} onCopy={(c) => navigator.clipboard.writeText(c)} onShowCitations={props.onShowCitations} />
-                  ))}
-                  <div ref={messagesEndRef} />
-              </div>
-            </InternalView>
+      </div>
 
-            <InternalView active={!chatSession}>
-              <WelcomeView currentModel={props.currentModel} onSetCurrentModel={props.onSetCurrentModel} availableModels={props.availableModels} />
-            </InternalView>
-        </div>
-        
-        {!isLoading && props.suggestedReplies.length > 0 && !editingMessageId && !chatInput && <SuggestedReplies suggestions={props.suggestedReplies} onSendSuggestion={handleSendSuggestion} />}
+      {/* Chat header */}
+      <ChatHeader
+        chatSession={chatSession}
+        onNewChat={onNewChat}
+        availableModels={props.availableModels}
+        onSetModelForActiveChat={props.onSetModelForActiveChat}
+        currentModel={props.currentModel}
+        isSidebarCollapsed={props.isSidebarCollapsed}
+        onToggleSidebar={props.onToggleSidebar}
+        onToggleMobileSidebar={props.onToggleMobileSidebar}
+      />
 
-        <ChatInput ref={chatInputRef} onSendMessage={handleSendMessageWithTools} isLoading={isLoading} onCancel={props.onCancelGeneration} toolConfig={toolConfig} onToolConfigChange={setToolConfig} input={chatInput} setInput={setChatInput} chatSession={chatSession} onToggleStudyMode={handleToggleStudyMode} isNextChatStudyMode={props.isNextChatStudyMode}/>
+      {/* Messages / Welcome */}
+      <div className="flex-grow flex flex-col relative min-h-0">
+        {/* Chat байгаа үед */}
+        <InternalView active={!!chatSession}>
+          <div className="flex-grow overflow-y-auto p-4">
+            {(chatSession?.messages || []).map((msg, index) => (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                index={index}
+                onImageClick={props.onImageClick}
+                settings={settings}
+                persona={activePersona}
+                isLastMessageLoading={
+                  isLoading &&
+                  !!chatSession &&
+                  index === chatSession.messages.length - 1
+                }
+                isEditing={editingMessageId === msg.id}
+                onEditRequest={() => setEditingMessageId(msg.id)}
+                onCancelEdit={() => setEditingMessageId(null)}
+                onSaveEdit={handleSaveEdit}
+                onDelete={props.onDeleteMessage}
+                onRegenerate={props.onRegenerate}
+                onCopy={(c) => navigator.clipboard.writeText(c)}
+                onShowCitations={props.onShowCitations}
+              />
+            ))}
+            {/* Доод талын anchor – үүн рүү scroll хийж байна */}
+            <div ref={messagesEndRef} />
+          </div>
+        </InternalView>
+
+        {/* Анхны дэлгэц – chat байхгүй үед */}
+        <InternalView active={!chatSession}>
+          <WelcomeView
+            currentModel={props.currentModel}
+            onSetCurrentModel={props.onSetCurrentModel}
+            availableModels={props.availableModels}
+          />
+        </InternalView>
+      </div>
+
+      {/* Suggested replies */}
+      {!isLoading &&
+        props.suggestedReplies.length > 0 &&
+        !editingMessageId &&
+        !chatInput && (
+          <SuggestedReplies
+            suggestions={props.suggestedReplies}
+            onSendSuggestion={handleSendSuggestion}
+          />
+        )}
+
+      {/* Input */}
+      <ChatInput
+        ref={chatInputRef}
+        onSendMessage={handleSendMessageWithTools}
+        isLoading={isLoading}
+        onCancel={onCancelGeneration}
+        toolConfig={toolConfig}
+        onToolConfigChange={setToolConfig}
+        input={chatInput}
+        setInput={setChatInput}
+        chatSession={chatSession}
+        onToggleStudyMode={handleToggleStudyMode}
+        isNextChatStudyMode={props.isNextChatStudyMode}
+      />
     </main>
   );
 };
