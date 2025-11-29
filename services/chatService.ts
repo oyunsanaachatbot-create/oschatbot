@@ -1,7 +1,20 @@
 // services/chatService.ts
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
-export async function sendChat(messages: any[]) {
+type Attachment = {
+  name: string;
+  type: string;      // "image/png" гэх мэт
+  size: number;
+  dataUrl: string;   // fileToData()-аас авдаг base64 data URL
+};
+
+type ChatMessage = {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  attachments?: Attachment[];
+};
+
+export async function sendChat(messages: ChatMessage[]) {
   if (!OPENAI_API_KEY) {
     console.error('VITE_OPENAI_API_KEY тохируулаагүй байна');
     return {
@@ -9,6 +22,40 @@ export async function sendChat(messages: any[]) {
       reply: 'Серверийн тохиргоонд асуудал байна. API key тохируулаагүй байна.',
     };
   }
+
+  // OpenAI-д явуулах формат
+  const payloadMessages = messages.map((msg) => {
+    // Зөвхөн user мессеж дээр зураг нэмж байна
+    if (msg.role === 'user' && msg.attachments && msg.attachments.length > 0) {
+      const parts: any[] = [];
+
+      if (msg.content && msg.content.trim() !== '') {
+        parts.push({
+          type: 'text',
+          text: msg.content,
+        });
+      }
+
+      for (const att of msg.attachments) {
+        // dataUrl нь "data:image/...;base64,...." хэлбэртэй байх ёстой
+        parts.push({
+          type: 'image_url',
+          image_url: { url: att.dataUrl },
+        });
+      }
+
+      return {
+        role: 'user',
+        content: parts,
+      };
+    }
+
+    // Энгийн текст мессеж
+    return {
+      role: msg.role,
+      content: msg.content,
+    };
+  });
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -20,10 +67,7 @@ export async function sendChat(messages: any[]) {
       model: 'gpt-4.1-mini',
       temperature: 0.7,
       max_tokens: 500,
-      messages: messages.map((msg) => ({
-        role: msg.role === 'user' ? 'user' : 'assistant',
-        content: msg.content,          // ⬅ attachments энд алга
-      })),
+      messages: payloadMessages,
     }),
   });
 
