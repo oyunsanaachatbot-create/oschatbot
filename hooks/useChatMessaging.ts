@@ -26,14 +26,10 @@ export const useChatMessaging = ({ settings, activeChat, personas, setChats, set
 
   const _initiateStream = useCallback(async (chatId: string, historyForAPI: Message[], toolConfig: any, personaId: string | null | undefined, isStudyMode?: boolean) => {
     const apiKeys = settings.apiKey && settings.apiKey.length > 0
-      ? settings.apiKey
-      : (process.env.API_KEY ? [process.env.API_KEY] : []);
-    
-    if (apiKeys.length === 0) {
-        addToast("Please set your Gemini API key in Settings.", 'error');
-        setIsLoading(false);
-        return;
-    }
+  ? settings.apiKey
+  : (process.env.API_KEY ? [process.env.API_KEY] : []);
+
+// энд цааш үргэлжилнэ, if (...) блок байхгүй болно
 
     isCancelledRef.current = false;
     setIsLoading(true);
