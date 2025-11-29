@@ -1,50 +1,41 @@
-// components/ChatView.tsx
 import React, {
   useState,
   useRef,
   useEffect,
   useCallback,
-} from 'react';
-import { ChatSession, Message, Settings, Persona } from '../types';
-import { Icon } from './Icon';
-import { WelcomeView } from './WelcomeView';
-import { MessageBubble } from './MessageBubble';
-import { ChatInput, ChatInputRef } from './chat/ChatInput';
-import { SuggestedReplies } from './SuggestedReplies';
-import { useLocalization } from '../contexts/LocalizationContext';
-import { InternalView } from './common/InternalView';
-import { ChatHeader } from './chat/ChatHeader';
+} from "react";
+import { ChatSession, Message, Settings, Persona } from "../types";
+import { Icon } from "./Icon";
+import { WelcomeView } from "./WelcomeView";
+import { MessageBubble } from "./MessageBubble";
+import { ChatInput, ChatInputRef } from "./chat/ChatInput";
+import { SuggestedReplies } from "./SuggestedReplies";
+import { useLocalization } from "../contexts/LocalizationContext";
+import { InternalView } from "./common/InternalView";
+import { ChatHeader } from "./chat/ChatHeader";
 
 interface ChatViewProps {
   chatSession: ChatSession | null;
   personas: Persona[];
-
-  onSendMessage: (message: string, files: File[], toolConfig: any) => void;
+  onSendMessage: (text: string, files: File[], toolConfig: any) => void;
   isLoading: boolean;
   settings: Settings;
   onCancelGeneration: () => void;
-
-  onSetModelForActiveChat: (model: string) => void;
+  onSetModelForActiveChat: (m: string) => void;
   currentModel: string;
-  onSetCurrentModel: (model: string) => void;
+  onSetCurrentModel: (m: string) => void;
   availableModels: string[];
-
   isSidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   onToggleMobileSidebar: () => void;
-
   onNewChat: () => void;
   onImageClick: (src: string) => void;
-
   suggestedReplies: string[];
-
   onDeleteMessage: (id: string) => void;
-  onUpdateMessageContent: (id: string, newContent: string) => void;
+  onUpdateMessageContent: (id: string, text: string) => void;
   onRegenerate: () => void;
-  onEditAndResubmit: (id: string, newContent: string) => void;
+  onEditAndResubmit: (id: string, text: string) => void;
   onShowCitations: (chunks: any[]) => void;
-
-  // Study mode
   onToggleStudyMode: (chatId: string, enabled: boolean) => void;
   isNextChatStudyMode: boolean;
   onToggleNextChatStudyMode: (enabled: boolean) => void;
@@ -53,99 +44,39 @@ interface ChatViewProps {
 export const ChatView: React.FC<ChatViewProps> = (props) => {
   const { t } = useLocalization();
 
-  const {
-    chatSession,
-    personas,
-    onSendMessage,
-    isLoading,
-    settings,
-    onCancelGeneration,
-    onNewChat,
-  } = props;
-
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-
   const chatInputRef = useRef<ChatInputRef | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const dragCounter = useRef(0);
-  const prevChatIdRef = useRef<string | null | undefined>(undefined);
 
-  const activePersona: Persona | undefined =
-    chatSession?.personaId
-      ? personas.find((p) => p.id === chatSession.personaId)
-      : undefined;
-
-  const getDefaultToolConfig = useCallback(
-    () => ({
-      codeExecution: false,
-      googleSearch: settings.defaultSearch,
-      urlContext: false,
-    }),
-    [settings.defaultSearch]
-  );
-
-  const [toolConfig, setToolConfig] = useState(getDefaultToolConfig);
-
-  // Chat солигдоход toolConfig, edit state-ийг reset хийнэ
+  // ---- Scroll to bottom ----
   useEffect(() => {
-    if (chatSession?.id !== prevChatIdRef.current) {
-      setToolConfig(getDefaultToolConfig());
-      setEditingMessageId(null);
-    }
-    prevChatIdRef.current = chatSession?.id;
-  }, [chatSession, getDefaultToolConfig]);
-
-  // Доош автоматаар scroll
-  useEffect(() => {
-    if (!chatSession) return;
-    if (isLoading || editingMessageId) return;
-
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [
-    chatSession?.id,
-    chatSession?.messages.length,
-    isLoading,
-    editingMessageId,
-  ]);
+  }, [props.chatSession?.id, props.chatSession?.messages.length]);
 
-  // ---- Study mode toggle ----
-  const handleToggleStudyMode = (enabled: boolean) => {
-    if (chatSession) {
-      props.onToggleStudyMode(chatSession.id, enabled);
-    } else {
-      props.onToggleNextChatStudyMode(enabled);
-    }
-  };
+  // ---- Drag & drop handlers ----
+  const dragCounter = useRef(0);
 
-  // ---- Drag & drop ----
-  const handleDragEnter = (e: React.DragEvent<HTMLElement>) => {
+  const handleDragEnter = (e: any) => {
     e.preventDefault();
     e.stopPropagation();
-    dragCounter.current += 1;
-
-    if (
-      e.dataTransfer.types &&
-      Array.from(e.dataTransfer.types).includes('Files')
-    ) {
+    dragCounter.current++;
+    if (e.dataTransfer?.types?.includes("Files")) {
       setIsDraggingOver(true);
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLElement>) => {
+  const handleDragLeave = (e: any) => {
     e.preventDefault();
     e.stopPropagation();
-    dragCounter.current -= 1;
-
-    if (dragCounter.current === 0) {
-      setIsDraggingOver(false);
-    }
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDraggingOver(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLElement>) => {
+  const handleDrop = (e: any) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingOver(false);
@@ -157,26 +88,27 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
     }
   };
 
-  // ---- Send / suggestion ----
-  const handleSendMessageWithTools = (
-    message: string,
-    files: File[] = [],
-    config: any = toolConfig
-  ) => {
-    if (!message.trim() && files.length === 0) return;
-    onSendMessage(message, files, config);
+  const activePersona =
+    props.chatSession?.personaId &&
+    props.personas.find((p) => p.id === props.chatSession?.personaId);
+
+  // ---- Send messages ----
+  const handleSendMessage = (text: string, files: File[], tool: any) => {
+    props.onSendMessage(text, files, tool);
   };
 
-  const handleSendSuggestion = (suggestion: string) => {
-    if (isLoading) return;
-    handleSendMessageWithTools(suggestion, [], toolConfig);
+  const handleSendSuggestion = (text: string) => {
+    if (!props.isLoading) {
+      handleSendMessage(text, [], {});
+    }
   };
 
-  const handleSaveEdit = (message: Message, newContent: string) => {
-    if (message.role === 'user') {
-      props.onEditAndResubmit(message.id, newContent);
+  // ---- Save edited message ----
+  const handleSaveEdit = (msg: Message, newText: string) => {
+    if (msg.role === "user") {
+      props.onEditAndResubmit(msg.id, newText);
     } else {
-      props.onUpdateMessageContent(message.id, newContent);
+      props.onUpdateMessageContent(msg.id, newText);
     }
   };
 
@@ -185,24 +117,21 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
       className="glass-pane rounded-[var(--radius-2xl)] flex flex-col h-full overflow-hidden relative"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }}
+      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onDrop={handleDrop}
     >
       {/* Dropzone overlay */}
-      <div className={`dropzone-overlay ${isDraggingOver ? 'visible' : ''}`}>
+      <div className={`dropzone-overlay ${isDraggingOver ? "visible" : ""}`}>
         <div className="dropzone-overlay-content">
           <Icon icon="upload" className="w-20 h-20" />
-          <h3 className="text-2xl font-bold">Drop files here to upload</h3>
+          <h3 className="text-2xl font-bold">Drop files here</h3>
         </div>
       </div>
 
-      {/* Chat header */}
+      {/* Header */}
       <ChatHeader
-        chatSession={chatSession}
-        onNewChat={onNewChat}
+        chatSession={props.chatSession}
+        onNewChat={props.onNewChat}
         availableModels={props.availableModels}
         onSetModelForActiveChat={props.onSetModelForActiveChat}
         currentModel={props.currentModel}
@@ -211,23 +140,21 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
         onToggleMobileSidebar={props.onToggleMobileSidebar}
       />
 
-      {/* Messages / Welcome */}
+      {/* MESSAGE AREA */}
       <div className="flex-grow flex flex-col relative min-h-0">
-        {/* Chat байгаа үед */}
-        <InternalView active={!!chatSession}>
+        {/* If chat exists */}
+        <InternalView active={!!props.chatSession}>
           <div className="flex-grow overflow-y-auto p-4">
-            {(chatSession?.messages || []).map((msg, index) => (
+            {(props.chatSession?.messages || []).map((msg, index) => (
               <MessageBubble
                 key={msg.id}
                 message={msg}
                 index={index}
-                onImageClick={props.onImageClick}
-                settings={settings}
                 persona={activePersona}
+                settings={props.settings}
                 isLastMessageLoading={
-                  isLoading &&
-                  !!chatSession &&
-                  index === chatSession.messages.length - 1
+                  props.isLoading &&
+                  index === props.chatSession!.messages.length - 1
                 }
                 isEditing={editingMessageId === msg.id}
                 onEditRequest={() => setEditingMessageId(msg.id)}
@@ -236,15 +163,17 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
                 onDelete={props.onDeleteMessage}
                 onRegenerate={props.onRegenerate}
                 onCopy={(c) => navigator.clipboard.writeText(c)}
+                onImageClick={props.onImageClick}
                 onShowCitations={props.onShowCitations}
               />
             ))}
+
             <div ref={messagesEndRef} />
           </div>
         </InternalView>
 
-        {/* Анхны дэлгэц */}
-        <InternalView active={!chatSession}>
+        {/* If no chat yet */}
+        <InternalView active={!props.chatSession}>
           <WelcomeView
             currentModel={props.currentModel}
             onSetCurrentModel={props.onSetCurrentModel}
@@ -254,7 +183,7 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
       </div>
 
       {/* Suggested replies */}
-      {!isLoading &&
+      {!props.isLoading &&
         props.suggestedReplies.length > 0 &&
         !editingMessageId && (
           <SuggestedReplies
@@ -263,16 +192,16 @@ export const ChatView: React.FC<ChatViewProps> = (props) => {
           />
         )}
 
-      {/* Input – state-ийг ChatInput өөрөө удирдана */}
+      {/* Chat Input */}
       <ChatInput
         ref={chatInputRef}
-        onSendMessage={handleSendMessageWithTools}
-        isLoading={isLoading}
-        onCancel={onCancelGeneration}
-        toolConfig={toolConfig}
-        onToolConfigChange={setToolConfig}
-        chatSession={chatSession}
-        onToggleStudyMode={handleToggleStudyMode}
+        onSendMessage={handleSendMessage}
+        isLoading={props.isLoading}
+        onCancel={props.onCancelGeneration}
+        chatSession={props.chatSession}
+        toolConfig={{}}
+        onToolConfigChange={() => {}}
+        onToggleStudyMode={props.onToggleStudyMode}
         isNextChatStudyMode={props.isNextChatStudyMode}
       />
     </main>
