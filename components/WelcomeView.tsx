@@ -14,10 +14,12 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onSetCurrentModel, cur
   return (
     <div className="flex-grow flex flex-col items-center justify-center text-center p-8">
       <Icon icon="kchat" className="w-24 h-24 text-[var(--accent-color)] opacity-80" />
-      <h1 className="mt-6 text-4xl font-bold text-[var(--text-color)]">{t('Сайн байна уу')}</h1>
-      <p className="mt-2 text-lg text-[var(--text-color-secondary)] max-w-md">
-        {t('Сэтгэлийн туслагч Оюунсанаа байна, таньд юугаар туслах вэ?')}
-      </p>
+     <h1 className="mt-6 text-4xl font-bold text-[var(--text-color)]">
+  Сайн байна уу 😊
+</h1>
+<p className="mt-2 text-lg text-[var(--text-color-secondary)] max-w-md">
+  Сэтгэлийн туслагч <span className="font-semibold">Оюунсанаа</span> байна, танд юугаар туслах вэ?
+</p>
       <div className="mt-8">
         <ModelSelector
           models={availableModels}
