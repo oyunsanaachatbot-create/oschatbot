@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Persona, Settings } from '../../types';
 import { useLocalization } from '../../contexts/LocalizationContext';
 import { useToast } from '../../contexts/ToastContext';
-
+import { generatePersonaUpdate } from '../../services/geminiService';
 import { Icon } from '../Icon';
 
 interface BuilderMessage {
@@ -43,9 +43,10 @@ export const AIBuilder: React.FC<AIBuilderProps> = ({ persona, onUpdate, setting
             const apiKeys = settings.apiKey?.length ? settings.apiKey : (process.env.API_KEY ? [process.env.API_KEY] : []);
             if (apiKeys.length === 0) throw new Error("API Key not set.");
 
+            const { personaUpdate, explanation } = await generatePersonaUpdate(apiKeys, settings.defaultModel, persona, userInput, settings);
             
-           
-        
+            onUpdate(personaUpdate);
+            setMessages(prev => prev.map(m => m.id === statusMessageId ? { ...m, role: 'model', content: explanation } : m));
         } catch (error) {
             console.error(error);
             const errorMessage = (error as Error).message.includes("API Key not set") 
